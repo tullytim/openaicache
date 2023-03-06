@@ -3,7 +3,7 @@ import pinecone
 import openai
 import os
 import base64
-
+from termcolor import colored
 
 class Cache:
     """ OpenAI Cache using Pinecone """
@@ -35,23 +35,28 @@ class Cache:
         self.pinecone_index.upsert(vectors=[v])
     
     def getitem(self, data):
+        data = f"Answer the question below.\n\n\nQuestion: {data}\n\nAnswer:"
         embed = openai.Embedding.create(input=[data], model=self.MODEL)[
             'data'][0]['embedding']
         # cache lookup in PC
         pc_lookup = self.__get_from_pinecone(embed)
         if not pc_lookup.matches:
+            print(colored('CACHE MISS', 'red', attrs=['bold']))
             completion = self.getcompletion(data)
             self.__put_pinecone_with_completion(embed, data, completion)
             return completion
         
         first_match = pc_lookup.matches[0]
         score = first_match['score']
-        print(score)
-        
+        print(f"PINECONE SCORE: {score}")
+        print(colored('Hello', 'black', attrs=['bold']))
+
         # Also a HIT
-        if abs(score) > .90:
+        if abs(score) > self.epsilon:
+            print(colored('CACHE HIT', 'green', attrs=['bold']))
             return pc_lookup.matches[0]['metadata']['a']
         else:
+            print(colored('CACHE MISS', 'red', attrs=['bold']))
             completion = self.getcompletion(data)
             self.__put_pinecone_with_completion(embed, data, completion)
             return completion
